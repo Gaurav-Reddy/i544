@@ -47,14 +47,20 @@ export default class MemSpreadsheet {
    *  return { value: 0, formula: '' } for an empty cell.
    */
   query(cellId) {
-    //@TODO
-    return { };
+    //console.log("pass+mem");
+    const id = cellId.replace(/\$/g, '');
+    let cell = this._cells[id];
+    //if(cell.formula===""){}
+    cell = cell ?? (this._cells[id] = new CellInfo(id, this));
+    return {'value':cell.value,'formula':cell.formula()};
   }
 
   /** Clear contents of this spreadsheet. No undo information recorded. */
   clear() {
     this._undos = {};
     //@TODO
+    this._cells={};
+    
   }
 
   /** Delete all info for cellId from this spreadsheet. Return an
@@ -63,10 +69,22 @@ export default class MemSpreadsheet {
    */
   delete(cellId) {
     this._undos = {};
-    const results = {};
+    const updates={};
     //@TODO
-    return results;
+    
+    /*const cell = this._updateCell(cellId, cell => {cell.ast.value = 0});
+    console.log(cell);
+    const oldAst = this._cells[cellId]?.ast;
+    console.log(cell.dependents);
+    for (let elem in cell.dependents){
+       updates = this._evalCell(this._cells[elem], new Set());
+       console.log(elem+"a");
+    }
+    */
+    return updates;
   }
+
+  
 
   /** copy formula from srcCellId to destCellId, adjusting any
    *  relative cell references suitably.  Return an object mapping the
@@ -212,7 +230,7 @@ class CellInfo {
   }
 
   //formula computed on the fly from the ast
-  get formula() { return this.ast ? this.ast.toString(this.id) : ''; }
+   formula() { return this.ast ? this.ast.toString(this.id) : ''; }
 
   //empty if no ast (equivalently, the formula is '').
   isEmpty() { return !this.ast; }

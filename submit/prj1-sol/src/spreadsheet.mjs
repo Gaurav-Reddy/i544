@@ -47,8 +47,9 @@ export default class Spreadsheet {
   //@TODO add methods
    auxeaval(baseCellId, expr) {
     let ast =parse(expr,baseCellId);
-    //console.log(ast);
-    console.log(inspect(ast, false, Infinity));
+    	
+    console.log(baseCellId);
+    console.log(inspect(ast, false, Infinity));exit();
     switch(ast.type){
       case 'num':
         return [baseCellId,ast.value]
@@ -69,19 +70,7 @@ export default class Spreadsheet {
   }
   array=[]
 
-  parseTwo(ast){
-    ast.kids.forEach(element=>{
-      if(element.type==='num'){
-        this.array.push(element.value)
-      }
-      else if(element.type==='app'){
-        this.array.push(element.fn)
-        this.parseTwo(element)
-      }
-
-    })
-
-  }
+  
 
   /*this fuction is ast with more than 
   one kids and fns below is to use it*/
