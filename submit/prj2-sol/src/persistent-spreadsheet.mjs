@@ -30,10 +30,10 @@ export default class PersistentSpreadsheet {
       const client = await mongo.connect(dbUrl, MONGO_CONNECT_OPTIONS);
       const db = client.db();
       const sheetName =  db.collection(spreadsheetName);
-      const arrayOfcells= await sheetName.find().toArray(sheetName);
-      
-      //return new UsersStore({client, users});
-      return new PersistentSpreadsheet({client,sheetName,arrayOfcells});
+      const arrayOfcells= await sheetName.find().toArray();
+      const arrayOfSheetNames=  await db.listCollections().toArray();
+      const sheetNameAsString=spreadsheetName;
+      return new PersistentSpreadsheet({client,sheetName,arrayOfcells,sheetNameAsString,arrayOfSheetNames});
     }
     catch (err) {
       const msg = `cannot connect to URL "${dbUrl}": ${err}`;
@@ -101,10 +101,16 @@ export default class PersistentSpreadsheet {
 
   /** Clear contents of this spreadsheet */
   async clear() {
-    
+   
     try {
-       await this.sheetName.drop();
-      
+      let flag=false;
+      for (const f of this.arrayOfSheetNames){
+        //console.log(f.name);
+      if(f.name===this.sheetNameAsString){flag=true}
+       }
+       if(flag===true){await this.sheetName.drop();}
+       
+      //add
     }
     catch (err) {
       const msg = `cannot drop collection ${this.spreadsheetName}: ${err}`;
@@ -122,11 +128,23 @@ export default class PersistentSpreadsheet {
   async delete(cellId) {
     let results;
     results = this.memory.delete(cellId); 
+    
     try {
       //@TODO
+      const ret =await this.sheetName.deleteOne({'baseCellId':cellId});
+      const flag= Object.keys(results).length === 0 && results.constructor === Object;  //if empty only del no update
+      if(!flag){//emtpy updates
+        for(const[cellid,value] of Object.entries(results)){
+          
+          let formula=this.memory.query(cellid).formula;
+          const ret =await this.sheetName.updateOne({'baseCellId':cellid},{$set:{'baseCellId':cellid,'formula':formula}},{upsert:true});
+          }
+      }
+       
     }
     catch (err) {
       //@TODO undo mem-spreadsheet operation
+      this.memory.undo();
       const msg = `cannot delete ${cellId}: ${err}`;
       throw new AppError('DB', msg);
     }
@@ -139,17 +157,24 @@ export default class PersistentSpreadsheet {
    *  an empty cell is equivalent to deleting the destination cell.
    */
   async copy(destCellId, srcCellId) {
-    const srcFormula = /* @TODO get formula by querying mem-spreadsheet */ '';
+    let results={};
+    let formulaObj= this.memory.query(srcCellId);
+    const srcFormula = formulaObj.formula;
+    //console.log(srcCellId);
     if (!srcFormula) {
       return await this.delete(destCellId);
     }
     else {
-      const results = /* @TODO delegate to in-memory spreadsheet */ {}; 
+       results = this.memory.copy(destCellId, srcCellId); 
       try {
-	//@TODO
+  //@TODO code to handle db inserts 
+      let destormula= this.memory.query(destCellId).formula; 
+      const ret =await this.sheetName.updateOne({'baseCellId':destCellId},{$set:{'baseCellId':destCellId,'formula':destormula}},{upsert:true});  
+
       }
       catch (err) {
-	//@TODO undo mem-spreadsheet operation
+  //@TODO undo mem-spreadsheet operation
+  this.memory.undo();
 	const msg = `cannot update "${destCellId}: ${err}`;
 	throw new AppError('DB', msg);
       }
@@ -180,7 +205,8 @@ export default class PersistentSpreadsheet {
    *  sort.
    */
   async dump() {
-    return /* @TODO delegate to in-memory spreadsheet */ []; 
+    let output =  this.memory.dump();
+    return /* @TODO delegate to in-memory spreadsheet */ output; 
   }
 
 }

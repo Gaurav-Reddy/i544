@@ -48,11 +48,11 @@ export default class MemSpreadsheet {
    */
   query(cellId) {
     //console.log("pass+mem");
-    const id = cellId.replace(/\$/g, '');
+    const id = cellId.replace(/\$/g, '');   //get_cell from project1 solution
     let cell = this._cells[id];
     //if(cell.formula===""){}
     cell = cell ?? (this._cells[id] = new CellInfo(id, this));
-    return {'value':cell.value,'formula':cell.formula()};
+    return {'value':cell.value,'formula':cell.formula};
   }
 
   /** Clear contents of this spreadsheet. No undo information recorded. */
@@ -69,18 +69,23 @@ export default class MemSpreadsheet {
    */
   delete(cellId) {
     this._undos = {};
-    const updates={};
+    let updates={};
     //@TODO
-    
-    /*const cell = this._updateCell(cellId, cell => {cell.ast.value = 0});
-    console.log(cell);
-    const oldAst = this._cells[cellId]?.ast;
-    console.log(cell.dependents);
-    for (let elem in cell.dependents){
-       updates = this._evalCell(this._cells[elem], new Set());
-       console.log(elem+"a");
+    const id = cellId.replace(/\$/g, '');
+    let cell = this._cells[cellId] ;
+    if(cell===undefined)return updates;
+    const dependents= cell.dependents;
+     cell = this._updateCell(cellId, cell=> delete this._cells[cell.id]);
+    if(dependents.size>0){
+     for(let id of dependents){
+      const obj = this.query(id);
+      let tempObj=this.eval(id,obj.formula);
+      for(const[cellid,value] of Object.entries(tempObj)){//add to updates
+        updates[cellid]=value;
+        }
+      }
     }
-    */
+    
     return updates;
   }
 
@@ -93,9 +98,18 @@ export default class MemSpreadsheet {
    */
   copy(destCellId, srcCellId) {
     this._undos = {};
-    const results = {};
+    let results = {};
     //@TODO
-    return results;
+    
+    let formulaObj= this.query(srcCellId).formula;
+    if(!formulaObj) {return this.delete(destCellId);}
+    else{
+      const srcAst=this._cells[srcCellId].ast;
+    const destFormula=srcAst.toString(destCellId);
+    
+    results = this.eval(destCellId,destFormula);
+    return results;}
+    
   }
 
   /** Return dump of cell values as list of cellId and formula pairs.
@@ -123,6 +137,7 @@ export default class MemSpreadsheet {
   dump() {
     const prereqs = this._makePrereqs();
     //@TODO
+    console.log(prereqs);
     return [];
   }
 
@@ -226,11 +241,11 @@ class CellInfo {
     this.ast = null;
     this.dependents = new Set(); //cell-ids of cells which depend on this
     //equivalently, this cell is a prerequisite for all cells in dependents
-    
+    //this.formula= this.formula();
   }
 
   //formula computed on the fly from the ast
-   formula() { return this.ast ? this.ast.toString(this.id) : ''; }
+  get formula() { return this.ast ? this.ast.toString(this.id) : ''; }
 
   //empty if no ast (equivalently, the formula is '').
   isEmpty() { return !this.ast; }
