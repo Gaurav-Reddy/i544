@@ -30,8 +30,8 @@ export default class PersistentSpreadsheet {
       const client = await mongo.connect(dbUrl, MONGO_CONNECT_OPTIONS);
       const db = client.db();
       const sheetName =  db.collection(spreadsheetName);
-      const arrayOfcells= await sheetName.find().toArray();
-      const arrayOfSheetNames=  await db.listCollections().toArray();
+      const arrayOfcells= await sheetName.find().toArray();             //array of cell:formula
+      const arrayOfSheetNames=  await db.listCollections().toArray();   //arry of names of collection
       const sheetNameAsString=spreadsheetName;
       return new PersistentSpreadsheet({client,sheetName,arrayOfcells,sheetNameAsString,arrayOfSheetNames});
     }
@@ -43,12 +43,13 @@ export default class PersistentSpreadsheet {
   }
 
   constructor(props) {
-    //super();
-    //@TODO
+    
     this.memory=new MemSpreadsheet();
   
     Object.assign(this,props);  //access the make sent properties below this line
-    //console.log(this.arrayOfcells);
+    
+    //this code is to load the data from db to memory
+
     for( const elem of this.arrayOfcells){
       this.memory.eval(elem.baseCellId,elem.formula);
     }
@@ -60,6 +61,8 @@ export default class PersistentSpreadsheet {
   async close() {
     //@TODO
     try {
+
+      //simple await close the connection of db
       const ret = await this.client.close();
     }
     catch (err) {
@@ -73,13 +76,9 @@ export default class PersistentSpreadsheet {
    *  of all dependent cells to their updated values.
    */
   async eval(baseCellId, formula) {
-    const results =  this.memory.eval(baseCellId,formula); 
-    //console.log(results);
+    const results =  this.memory.eval(baseCellId,formula); //calling in memory eval function
     try {
-      //@TODO
-      //const ret =await this.sheetName.insertOne({'baseCellId':baseCellId,'formula':formula});
       const ret =await this.sheetName.updateOne({'baseCellId':baseCellId},{$set:{'baseCellId':baseCellId,'formula':formula}},{upsert:true});
-     // console.log(ret);
     }
     catch (err) {
 
@@ -95,22 +94,28 @@ export default class PersistentSpreadsheet {
    *  return { value: 0, formula: '' } for an empty cell.
    */
   async query(cellId) {
+    //calling in memory query
     let cell=this.memory.query(cellId);
-    return /* @TODO delegate to in-memory spreadsheet */ cell; 
+    return cell; 
   }
 
   /** Clear contents of this spreadsheet */
   async clear() {
    
+    /*
+    this code is for checking if the 
+    passed name is actually present in the
+    list of arrayofsheet names (getting from the db.listCollection)
+    ie(./index.mjs dburl Spreadsheetname clear)
+    we check Spreadsheet name is in the array so hence it exists and now we dropit
+    */
     try {
       let flag=false;
       for (const f of this.arrayOfSheetNames){
-        //console.log(f.name);
       if(f.name===this.sheetNameAsString){flag=true}
        }
        if(flag===true){await this.sheetName.drop();}
-       
-      //add
+
     }
     catch (err) {
       const msg = `cannot drop collection ${this.spreadsheetName}: ${err}`;
@@ -133,6 +138,10 @@ export default class PersistentSpreadsheet {
       //@TODO
       const ret =await this.sheetName.deleteOne({'baseCellId':cellId});
       const flag= Object.keys(results).length === 0 && results.constructor === Object;  //if empty only del no update
+
+      //Below code will be excuted only if results var is NOT empty 
+      //so we need to now update the formula
+
       if(!flag){//emtpy updates
         for(const[cellid,value] of Object.entries(results)){
           
@@ -159,15 +168,17 @@ export default class PersistentSpreadsheet {
   async copy(destCellId, srcCellId) {
     let results={};
     let formulaObj= this.memory.query(srcCellId);
-    const srcFormula = formulaObj.formula;
-    //console.log(srcCellId);
+    const srcFormula = formulaObj.formula;          //these two lines are for getting formula using query
+    
     if (!srcFormula) {
-      return await this.delete(destCellId);
+      return await this.delete(destCellId); //delete the destcell if no scrFormula is present
     }
     else {
        results = this.memory.copy(destCellId, srcCellId); 
       try {
-  //@TODO code to handle db inserts 
+  
+      //below code updateone uses upsert so will in inserted into db if not present
+
       let destormula= this.memory.query(destCellId).formula; 
       const ret =await this.sheetName.updateOne({'baseCellId':destCellId},{$set:{'baseCellId':destCellId,'formula':destormula}},{upsert:true});  
 
@@ -206,7 +217,7 @@ export default class PersistentSpreadsheet {
    */
   async dump() {
     let output =  this.memory.dump();
-    return /* @TODO delegate to in-memory spreadsheet */ output; 
+    return output; 
   }
 
 }
