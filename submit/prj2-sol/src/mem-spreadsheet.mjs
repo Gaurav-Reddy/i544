@@ -135,16 +135,63 @@ export default class MemSpreadsheet {
    *  sort.
    */
   dump() {
+
+    let array=[];
     const prereqs = this._makePrereqs();
-    let newObj=[];
-    //@TODO
     for(const[cellid,dependents] of Object.entries(prereqs)){
-      let formulaObj= this.query(cellid).formula;
-      if(formulaObj!=""){
-           newObj.push([cellid,formulaObj]);
+      if(dependents.length==0){
+        let formulaObj= this.query(cellid).formula;
+        array.push([cellid,formulaObj]);
+      }
+    }
+
+    
+     array =  array.sort(function(a, b) {          //https://stackoverflow.com/questions/50415200/sort-an-array-of-arrays-in-javascript
+      return b[0] - a[0];
+    });
+
+    
+
+    for(const[cellid,dependents] of Object.entries(prereqs)){
+      if(dependents.length!=0){
+        for(const arrayElem of array){
+          for(const dep of dependents){
+            //console.log("arrayElem :"+arrayElem+" dep :"+dep);
+            if(arrayElem[0]===dep){
+              let formulaObj= this.query(cellid).formula;
+              array.push([cellid,formulaObj]);
+            }
+          }
         }
       }
-    //console.log(prereqs);
+    }
+    console.log(array);
+    /*for(const[cellid,dependents] of Object.entries(prereqs)){
+      if(dependents.length!=0){
+        for(const elem of array){
+          for(const o of dependents){
+          if(elem[0]===o){
+            let formulaObj= this.query(cellid).formula;
+            array.push([cellid,formulaObj]);
+          }
+        }
+        }
+      }
+    }*/
+
+    
+    //console.log("sd"+sortedArray);
+    
+    let newObj=[];
+    //@TODO
+   /* for(const[cellid,dependents] of Object.entries(prereqs)){
+      let formulaObj= this.query(cellid).formula;
+      if(formulaObj!=""){
+        //if(dependents.size==0){newObj.push([cellid,formulaObj]);}
+           
+        }
+      }*/
+    
     return newObj;
   }
 
