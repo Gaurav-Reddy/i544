@@ -102,9 +102,9 @@ export default class MemSpreadsheet {
     //@TODO
     
     let formulaObj= this.query(srcCellId).formula;
-    if(!formulaObj) {return this.delete(destCellId);}
+    if(formulaObj==="") {return this.delete(destCellId);}
     else{
-      const srcAst=this._cells[srcCellId].ast;
+    const srcAst=this._cells[srcCellId].ast;
     const destFormula=srcAst.toString(destCellId);
     
     results = this.eval(destCellId,destFormula);
@@ -136,9 +136,16 @@ export default class MemSpreadsheet {
    */
   dump() {
     const prereqs = this._makePrereqs();
+    let newObj=[];
     //@TODO
-    console.log(prereqs);
-    return [];
+    for(const[cellid,dependents] of Object.entries(prereqs)){
+      let formulaObj= this.query(cellid).formula;
+      if(formulaObj!=""){
+           newObj.push([cellid,formulaObj]);
+        }
+      }
+    //console.log(prereqs);
+    return newObj;
   }
 
   /** undo all changes since last operation */
