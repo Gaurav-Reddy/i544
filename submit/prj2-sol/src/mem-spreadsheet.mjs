@@ -73,14 +73,14 @@ export default class MemSpreadsheet {
     //@TODO
     const id = cellId.replace(/\$/g, '');
     let cell = this._cells[cellId] ;
-    if(cell===undefined)return updates;
+    if(cell===undefined)return updates;       //delete an not defined cell rteturn {}
     const dependents= cell.dependents;
      cell = this._updateCell(cellId, cell=> delete this._cells[cell.id]);
-    if(dependents.size>0){
+    if(dependents.size>0){                    //below code only if we have dependensts
      for(let id of dependents){
       const obj = this.query(id);
       let tempObj=this.eval(id,obj.formula);
-      for(const[cellid,value] of Object.entries(tempObj)){//add to updates
+      for(const[cellid,value] of Object.entries(tempObj)){//append to updates the cellid and formula
         updates[cellid]=value;
         }
       }
@@ -102,12 +102,12 @@ export default class MemSpreadsheet {
     //@TODO
     
     let formulaObj= this.query(srcCellId).formula;
-    if(formulaObj==="") {return this.delete(destCellId);}
+    if(formulaObj==="") {return this.delete(destCellId);}  //if formula is empty just delete
     else{
     const srcAst=this._cells[srcCellId].ast;
     const destFormula=srcAst.toString(destCellId);
     
-    results = this.eval(destCellId,destFormula);
+    results = this.eval(destCellId,destFormula);      //else reval destcell
     return results;}
     
   }
@@ -136,28 +136,12 @@ export default class MemSpreadsheet {
    */
   dump(){
     let final_array=[];
-    /*let dependencies = this._makePrereqs(),
-    keys = Object.keys(dependencies),
-    used = new Set,
-    result = [], length;
-    let items;
-    do {
-      length = keys.length;
-      let i = 0;
-      while (i < keys.length) {
-          if (dependencies[keys[i]].every(Set.prototype.has, used)) {
-              let item = keys.splice(i, 1)[0];
-              result.push(item);
-              used.add(item);
-              continue;
-          }
-          i++;
-      }
-  } while (keys.length && keys.length !== length)
-  result.push(...keys);*/
+   
   let dependencies = this._makePrereqs();
 
-
+// 1st loop is for adding cells with no dependents
+// then you push to array and  delete
+// the added key and value from dependencies 
 for(const[cellid,dependents] of Object.entries(dependencies)){
       if(dependents.length==0){
         let formulaObj= this.query(cellid).formula;
@@ -165,15 +149,19 @@ for(const[cellid,dependents] of Object.entries(dependencies)){
         delete dependencies[`${cellid}`];
         
 }}
+
+//this used to sort the array in lexical order
 function Comparator(a, b) {
   if (a[0] < b[0]) return -1;
   if (a[0] > b[0]) return 1;
   return 0;
 }
 final_array = final_array.sort(Comparator);
-// console.log(final_array);
-// console.log("sds")
-// console.log(dependencies)
+
+//this loop is for left over elements 
+//we now go through each element of the final_arry
+//then we check if its presnt in the dependents of each 
+//element in dependecies if present then we add formula and cell to the final array
 
     for( const elem of final_array  ){
    
@@ -187,70 +175,11 @@ final_array = final_array.sort(Comparator);
     }
        
     }
-    //console.log(final_array);
+    
     return final_array;
   }
 
-  // dump() {
-
-  //   let array=[];
-  //   const prereqs = this._makePrereqs();
-  //   for(const[cellid,dependents] of Object.entries(prereqs)){
-  //     if(dependents.length==0){
-  //       let formulaObj= this.query(cellid).formula;
-  //       array.push([cellid,formulaObj]);
-  //     }
-  //   }
-
-    
-  //    array =  array.sort(function(a, b) {          //https://stackoverflow.com/questions/50415200/sort-an-array-of-arrays-in-javascript
-  //     return b[0] - a[0];
-  //   });
-
-    
-
-  //   for(const[cellid,dependents] of Object.entries(prereqs)){
-  //     if(dependents.length!=0){
-  //       for(const arrayElem of array){
-  //         for(const dep of dependents){
-  //           console.log("arrayElem :"+arrayElem+" dep :"+dep);
-  //           if(arrayElem[0]===dep){
-  //             let formulaObj= this.query(cellid).formula;
-  //             array.push([cellid,formulaObj]);
-  //           }
-  //         }
-  //       }
-  //     }
-  //   }
-  //   console.log(array);
-  //   /*for(const[cellid,dependents] of Object.entries(prereqs)){
-  //     if(dependents.length!=0){
-  //       for(const elem of array){
-  //         for(const o of dependents){
-  //         if(elem[0]===o){
-  //           let formulaObj= this.query(cellid).formula;
-  //           array.push([cellid,formulaObj]);
-  //         }
-  //       }
-  //       }
-  //     }
-  //   }*/
-
-    
-  //   //console.log("sd"+sortedArray);
-    
-  //   let newObj=[];
-  //   //@TODO
-  //  /* for(const[cellid,dependents] of Object.entries(prereqs)){
-  //     let formulaObj= this.query(cellid).formula;
-  //     if(formulaObj!=""){
-  //       //if(dependents.size==0){newObj.push([cellid,formulaObj]);}
-           
-  //       }
-  //     }*/
-    
-  //   return newObj;
-  // }
+  
 
   /** undo all changes since last operation */
   undo() {
