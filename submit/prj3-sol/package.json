@@ -1,0 +1,23 @@
+{
+  "name": "prj3-sol",
+  "version": "1.0.0",
+  "description": "Name:\t\tXXX B-Number:\tXXX Email:\t\tXXX",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "undefined": "^0.1.0"
+  },
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "cors": "^2.8.5",
+    "cs544-ss": "file:../../../../cs544/lib/cs544-ss",
+    "express": "^4.17.1",
+    "mongo": "^0.1.0",
+    "nodemon": "^2.0.6"
+  }
+}
