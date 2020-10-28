@@ -48,24 +48,24 @@ function setupRoutes(app) {
   app.use(cors(CORS_OPTIONS));  //needed for future projects
   //@TODO add routes to handlers
   app.use(bodyParser.json());
-  app.get(`/${BASE}/${STORE}/:sheetName`,doLoadtoList(app));
-  app.delete(`/${BASE}/${STORE}/:sheetName`,doClear(app));
-  app.delete(`/${BASE}/${STORE}/:sheetName/:id`,doDeleteCell(app));
-  app.patch(`/${BASE}/${STORE}/:sheetName`,doUpdateSheet(app));
-  app.patch(`/${BASE}/${STORE}/:sheetName/:id`,doUpdateFormula(app));
-  app.put(`/${BASE}/${STORE}/:sheetName/:id`,doUpdateFormulaPut(app));
-  app.put(`/${BASE}/${STORE}/:sheetName`,doReloadSheet(app));
+  app.get(`/${BASE}/${STORE}/:sheetName`,doLoadtoList(app));  //get to display all the cell id formula
+  app.delete(`/${BASE}/${STORE}/:sheetName`,doClear(app));    //delete the spreadsheet
+  app.delete(`/${BASE}/${STORE}/:sheetName/:id`,doDeleteCell(app));//delete a particular cell 
+  app.patch(`/${BASE}/${STORE}/:sheetName`,doUpdateSheet(app));//updatesheet through the json 
+  app.patch(`/${BASE}/${STORE}/:sheetName/:id`,doUpdateFormula(app));//update through patch
+  app.put(`/${BASE}/${STORE}/:sheetName/:id`,doUpdateFormulaPut(app));//update through put
+  app.put(`/${BASE}/${STORE}/:sheetName`,doReloadSheet(app));//delete and reload the full sheet 
   //nothing after this
-  app.use(do404(app));
+  app.use(do404(app));// errors 
   app.use(doErrors(app));
 }
 
 /****************************** Handlers *******************************/
 
 //@TODO
+/**handler to reload the sheet throws error if no pair detected */
 function doReloadSheet(app){
   return (async function(req,res){
-    //const q = req.query || {};
     const sheetName= req.params.sheetName ;
     console.log(req.body);
     try{
@@ -84,6 +84,7 @@ function doReloadSheet(app){
   });
 
 }
+/** update the the formula */
 function doUpdateFormula(app){
   return(async function(req,res){
     const sheetName= req.params.sheetName ;
@@ -100,6 +101,8 @@ function doUpdateFormula(app){
     }
   });
 }
+
+/** update formula through put */
 function doUpdateFormulaPut(app){
   return(async function(req,res){
     const sheetName= req.params.sheetName ;
@@ -116,6 +119,8 @@ function doUpdateFormulaPut(app){
     }
   });
 }
+
+/**this delete cell through sheet */
 function doDeleteCell(app){
   
   return(async function(req,res){
@@ -134,6 +139,8 @@ function doDeleteCell(app){
   });
 
 }
+
+/** do update a cell  */
 function doUpdateSheet(app){
   return(async function(req,res){
     const sheetName= req.params.sheetName ;
@@ -149,6 +156,8 @@ function doUpdateSheet(app){
     }
   });
 }
+
+/** do read the db and display */
 function doLoadtoList(app){
   return (async function(req,res){
     //const q = req.query || {};
@@ -166,7 +175,7 @@ function doLoadtoList(app){
   });
 }
 
-
+/** empty the db sheet */
 function doClear(app){
   return (async function(req,res){
     //const q = req.query || {};
