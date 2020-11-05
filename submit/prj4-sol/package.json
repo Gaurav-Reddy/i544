@@ -1,0 +1,25 @@
+{
+  "name": "prj4-sol",
+  "version": "1.0.0",
+  "description": "Name:\t\tXXX B-Number:\tXXX Email:\t\tXXX",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.21.0",
+    "body-parser": "^1.19.0",
+    "chai": "^4.2.0",
+    "cs544-ss": "file:../../../../cs544/lib/cs544-ss",
+    "express": "^4.17.1",
+    "mocha": "^8.2.1",
+    "mustache": "^4.0.1",
+    "nodemon": "^2.0.6"
+  }
+}
