@@ -1,10 +1,11 @@
 <html>
-<b>PASSed</b><br>
-OBJbelow
-<i>
-{{value}}
-</i> 
-OBJend
+<link rel="stylesheet" href="/style.css" type="text/css"/>
+<table border='1' class="ss">
+{{#table}}
+<tr>
+{{{row}}}
+</tr>
+{{/table}}
 
-
+</table>
 </html>
