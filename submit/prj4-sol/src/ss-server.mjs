@@ -5,7 +5,7 @@ import bodyParser from 'body-parser';
 
 import querystring from 'querystring';
 
-import {AppError, Spreadsheet} from 'cs544-ss';
+import { AppError, Spreadsheet } from 'cs544-ss';
 
 import Mustache from './mustache.mjs';
 
@@ -31,7 +31,7 @@ export default function serve(port, store) {
   app.locals.mustache = new Mustache();
   app.use('/', express.static(STATIC_DIR));
   setupRoutes(app);
-  app.listen(port, function() {
+  app.listen(port, function () {
     console.log(`listening on port ${port}`);
   });
 }
@@ -40,9 +40,10 @@ export default function serve(port, store) {
 /*********************** Routes and Handlers ***************************/
 
 function setupRoutes(app) {
-  app.use(bodyParser.urlencoded({extended: true}));
-  app.get(`/`,indexLoad(app));
-  app.post(`/`,bodyParser.urlencoded({extended: false}),searchCells(app)); 
+  app.use(bodyParser.urlencoded({ extended: true }));
+  app.get(`/`, indexLoad(app));                                              //this is to load in the beginning
+  app.post(`/`, bodyParser.urlencoded({ extended: false }), searchCells(app));  //this is ffrom form of index to table page
+  app.post(`/ss/:name`, bodyParser.urlencoded({ extended: false }), actionForm(app));  //this is from the form in table page
   //@TODO add routes
   //must be last
   app.use(do404(app));
@@ -51,62 +52,124 @@ function setupRoutes(app) {
 }
 
 //@TODO add handlers 
+/**this is the action form from its called from the main table page 
+ * and if there are problems we send the page back again with errors message
+ * all processing for clearing,updating deleteing spreadsheet is present here
+ */
 
+function actionForm(app) {
+  return async function (req, res) {
+    try {
+      let errors = {};
+      const action = req.body.ssAct;
+      const returnForm = { 'sentCellId': req.body.cellId, 'sentFormula': req.body.formula };
+      returnForm[action] = true;
+      validateUpdate(req.body, errors);             //check the input for basic errors
+
+      if (Object.keys(errors).length != 0) {          //this will execute in only in there are no errors input
+        const sheet = await Spreadsheet.make(req.params.name, app.locals.store);
+        const viewData = await buildTable(req.params.name, sheet);    //build the mustache obj for table
+        let viewBuild = { name: req.params.name, ...errors, ...returnForm }; //this obj is the one we send to mustache
+        viewBuild.table = viewData;
+        res.status(BAD_REQUEST).
+          send(app.locals.mustache.render('sheet', viewBuild));
+      } else {
+        const sheet = await Spreadsheet.make(req.params.name, app.locals.store);//this execute if there are no errors from valifdate
+        let retunFormApperror = {};
+        let errors = {};
+        try {      //this try is for catch the errors like cricular ref
+          let returnFromFunction = {};
+          switch (action) {     //perform all action in spread sheet
+            case 'clear':
+              returnFromFunction = await sheet.clear();
+              break;
+            case 'deleteCell':
+              returnFromFunction = await sheet.delete(returnForm.sentCellId);
+              break;
+            case 'updateCell':
+              
+              returnFromFunction = await sheet.eval(returnForm.sentCellId, returnForm.sentFormula);
+              break;
+            case 'copyCell':
+              console.log(returnForm.sentCellId+'<->'+returnForm.sentFormula);
+              returnFromFunction = await sheet.copy(returnForm.sentCellId, returnForm.sentFormula);
+              break;
+            default:
+              console.error("the program must never reach here"); process.exit(-1);
+          }
+        } catch (err) {
+          const map = (mapError(err)); //maperror err taken from the prj3 
+          errors.formula = map.error.message;
+          retunFormApperror = returnForm;
+        } finally {
+          const viewData = await buildTable(req.params.name, sheet);
+          let viewBuild = { name: req.params.name, ...errors, ...retunFormApperror };
+          viewBuild.table = viewData;
+          res.status(BAD_REQUEST).
+            send(app.locals.mustache.render('sheet', viewBuild));
+        }
+
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  };
+}
+function searchCells(app) {// this route is to load the table 1st time after the index page
+  return async function (req, res) {
+
+    try {
+
+      const errorMsg = {};
+      const isValid = validateField('ssName', req.body, errorMsg);
+      const sentName = req.body.ssName;
+      //console.log({ 'Sname':sentName,errorMessage: errorMsg['ssName'] });
+      if (!isValid) {//send if errors are present
+        res.status(BAD_REQUEST).
+          send(app.locals.mustache.render('index', { 'Sname': sentName, errorMessage: errorMsg['ssName'] }));
+      } else {
+        //-------------------------------------------->retrive from db
+        const sheet = await Spreadsheet.make(sentName, app.locals.store);
+        const viewData = await buildTable(req.body.ssName, sheet);
+        //console.log({table:viewData});
+        //-------------------------------------------->retrive from db END
+        res.status(OK).
+          send(app.locals.mustache.render('sheet', { name: req.body.ssName, table: viewData }));
+      }
+    } catch (err) {
+      console.log(err);
+    }
+
+  };
+}
+
+function indexLoad(app) {//this is the 1st get to lod index page
+  return async function (req, res) {
+
+    res.status(OK).
+      send(app.locals.mustache.render('index', { 'Sname': '', errorMessage: "" }));
+  };
+}
 /** Default handler for when there is no route for a particular method
  *  and path. 
  */
-function searchCells(app){
-  return async function(req, res) {
-    
-    try{
-      const errorMsg={};
-      const isValid=validateField('ssName',req.body,errorMsg);
-      
-      
-      if(!isValid){
-        res.status(BAD_REQUEST).
-      send(app.locals.mustache.render('index',{ errorMessage: errorMsg['ssName'] }));
-      }
-      //-------------------------------------------->retrive from db
-      
-      
-      const viewData= await buildTable(req.body.ssName,app.locals.store);
-      console.log({table:viewData});
-      //-------------------------------------------->retrive from db END
-      res.status(OK).
-      send(app.locals.mustache.render('test',{table:viewData}));
-    }catch(err){
-      console.log(err);
-    }
-    
-   
-  };
-}
-
-function indexLoad(app){
-  return async function(req, res) {
-    
-    res.status(OK).
-      send(app.locals.mustache.render('index',{errorMessage:""}));
-  };
-}
 function do404(app) {
-  return async function(req, res) {
+  return async function (req, res) {
     const message = `${req.method} not supported for ${req.originalUrl}`;
     res.status(NOT_FOUND).
       send(app.locals.mustache.render('errors',
-				      { errors: [{ msg: message, }] }));
+        { errors: [{ msg: message, }] }));
   };
 }
 
 /** Ensures a server error results in an error page sent back to
  *  client with details logged on console.
- */ 
+ */
 function doErrors(app) {
-  return async function(err, req, res, next) {
+  return async function (err, req, res, next) {
     res.status(SERVER_ERROR);
     res.send(app.locals.mustache.render('errors',
-					{ errors: [ {msg: err.message, }] }));
+      { errors: [{ msg: err.message, }] }));
     console.error(err);
   };
 }
@@ -118,59 +181,71 @@ const MIN_COLS = 10;
 
 //@TODO add functions to build a spreadsheet view suitable for mustache
 
-async function buildTable(name,store){
-  const sheet = await Spreadsheet.make(name,store);
-  const data=sheet.dump();
-  const cellids=[];
-  for(const id of data){cellids.push(id[0]);}
-  const rowsCols=getNoofRowsAndCols(cellids);
-  
-  
-  let dataArray=createEmptyArray(rowsCols[0],rowsCols[1]);  //create an empty array;will be filled with data
+/**
+ * this is used to build the table
+ * @param name name of the sheet
+ * @param sheet sheet obj of spreadsheet class
+ * a breif explanation of the function below
+ * 1.get datadump of the sheet as cell anf formula
+ * 2.getNoofRowsAndCols(cellids) get the no of cols and rows in the table 
+ * 3.create and empty array (2-d) of the rows and cols
+ * 4.now push the cell values in the 2d array where a1-[0,0];a2-[0,1];b1-[1,0]
+ */
+async function buildTable(name, sheet) {
+
+  const data = sheet.dump();
+  const cellids = [];
+  for (const id of data) { cellids.push(id[0]); }
+  const rowsCols = getNoofRowsAndCols(cellids);
+
+
+  let dataArray = createEmptyArray(rowsCols[0], rowsCols[1]);  //create an empty array;will be filled with data
   //dataArray.push(getFirstRow(name,rowsCols[0]));
-  if(data.length!=0){fillDataArray(cellids,dataArray,sheet);}             //populate with data
-  let dataJson=[];
-  let sNo=0;
-  for (const rowD of dataArray){
+  if (data.length != 0) { fillDataArray(cellids, dataArray, sheet); }             //populate with data
+  let dataJson = [];
+  let sNo = 0;
+  for (const rowD of dataArray) {
     sNo++;
-    if(sNo===1){dataJson.push({row:getFirstRow(name,rowsCols[0]).join('')})}
-    dataJson.push({row:'<td><b>'+sNo+'</b></td>'+rowD.join('')});
+    if (sNo === 1) { dataJson.push({ row: getFirstRow(name, rowsCols[1]).join('') }) }
+    dataJson.push({ row: '<th>' + sNo + '</th>' + rowD.join('') });
   }
-  
+
   return dataJson;
 };
-function fillDataArray(array,dataArray,connector){
-  for(const i of array){
-    
-    const cellvalue=connector.query(i).value;
-    const rowNo = parseInt(i.substr(1))-1;
-    const colNo = i[0].charCodeAt(0)-96-1;
-    dataArray[rowNo][colNo]= '<td>'+cellvalue+'</td>';
-    
+function fillDataArray(array, dataArray, connector) {
+  for (const i of array) {
+
+    const cellvalue = connector.query(i).value;
+    const rowNo = parseInt(i.substr(1)) - 1;
+    const colNo = i[0].charCodeAt(0) - 96 - 1;  //https://stackoverflow.com/questions/22624379/how-to-convert-letters-to-numbers-with-javascript
+    //console.log(rowNo+'x'+colNo+'-'+i+'--'+cellvalue);
+    //console.log(dataArray);
+    dataArray[rowNo][colNo] = '<td>' + cellvalue + '</td>';
+
   }
 }
-function createEmptyArray(rowsNo,colsNo){
+function createEmptyArray(rowsNo, colsNo) {
   return new Array(rowsNo).fill('<td>&nbsp;</td>').map(() => new Array(colsNo).fill('<td>&nbsp;</td>'));
 }
-function getFirstRow(name,rowsno){
-  const row=[];
-  for(let i=0;i<rowsno;i++){
-    row.push('<td><b>'+(String.fromCharCode(i+97)).toUpperCase()+'</b></td>');
+function getFirstRow(name, rowsno) {
+  const row = [];
+  for (let i = 0; i < rowsno; i++) {
+    row.push('<th>' + (String.fromCharCode(i + 97)).toUpperCase() + '</th>');
   }
-  return ['<td><b>'+name+"</b></td>"].concat(row);
+  return ['<th>' + name + "</th>"].concat(row);
 }
 
-function getNoofRowsAndCols(data){
-  
-  let cols=[];let rows=[];
-  for(const i of data){cols.push(i[0]);}
-  for(const j of data){rows.push(j.substr(1));}
-  if(data.length===0){return [MIN_ROWS,MIN_COLS]}
-  cols.sort();rows.sort();
-  const rowNo=parseInt(rows[rows.length-1]-1)>MIN_ROWS?parseInt(rows[rows.length-1]-1):MIN_ROWS;
-  const colNo=cols[cols.length-1].charCodeAt(0)-96>MIN_COLS?cols[cols.length-1].charCodeAt(0)-96:MIN_COLS;
-  return [rowNo,colNo];
-  }
+function getNoofRowsAndCols(data) {
+
+  let cols = []; let rows = [];
+  for (const i of data) { cols.push(i[0]); }
+  for (const j of data) { rows.push(j.substr(1)); }
+  if (data.length === 0) { return [MIN_ROWS, MIN_COLS] }
+  cols.sort(); rows.sort(function (a, b) { return a - b });
+  const rowNo = parseInt(rows[rows.length - 1]) > MIN_ROWS ? parseInt(rows[rows.length - 1]) : MIN_ROWS;
+  const colNo = cols[cols.length - 1].charCodeAt(0) - 96 > MIN_COLS ? cols[cols.length - 1].charCodeAt(0) - 96 : MIN_COLS;  //https://stackoverflow.com/questions/22624379/how-to-convert-letters-to-numbers-with-javascript
+  return [rowNo, colNo];
+}
 
 /**************************** Validation ********************************/
 
@@ -207,13 +282,13 @@ const FIELD_INFOS = {
  *  message as errors[name].
  */
 function validateField(name, params, errors) {
-  
+
   const info = FIELD_INFOS[name];
   const value = params[name];
-  
+
   if (isEmpty(value)) {
     errors[name] = `The ${info.friendlyName} field must be specified`;
-  
+
     return false;
   }
   if (info.err) {
@@ -226,7 +301,7 @@ function validateField(name, params, errors) {
   return true;
 }
 
-  
+
 /** validate widgets in update object, returning true iff all valid.
  *  Add suitable error messages to errors object.
  */
@@ -240,24 +315,24 @@ function validateUpdate(update, errors) {
       return validateFields('Clear', [], ['cellId', 'formula'], update, errors);
     case 'deleteCell':
       return validateFields('Delete Cell', ['cellId'], ['formula'],
-			    update, errors);
+        update, errors);
     case 'copyCell': {
-      const isOk = validateFields('Copy Cell', ['cellId','formula'], [],
-				  update, errors);
+      const isOk = validateFields('Copy Cell', ['cellId', 'formula'], [],
+        update, errors);
       if (!isOk) {
-	return false;
+        return false;
       }
       else if (!FIELD_INFOS.cellId.err(update.formula)) {
-	  return true;
+        return true;
       }
       else {
-	errors.formula = `Copy requires formula to specify a cell ID`;
-	return false;
+        errors.formula = `Copy requires formula to specify a cell ID`;
+        return false;
       }
     }
     case 'updateCell':
-      return validateFields('Update Cell', ['cellId','formula'], [],
-			    update, errors);
+      return validateFields('Update Cell', ['cellId', 'formula'], [],
+        update, errors);
     default:
       errors.ssAct = `Invalid action "${act}`;
       return false;
@@ -279,11 +354,32 @@ function validateFields(act, required, forbidden, params, errors) {
 
 
 /************************ General Utilities ****************************/
+/**This function is used to maperrors taken from project 3*/
+const ERROR_MAP = {
+}
+
+/** Map domain/internal errors into suitable HTTP errors.  Return'd
+ *  object will have a "status" property corresponding to HTTP status
+ *  code and an error property containing an object with with code and
+ *  message properties.
+ */
+function mapError(err) {
+  const isDomainError = (err instanceof AppError);
+  const status =
+    isDomainError ? (ERROR_MAP[err.code] || BAD_REQUEST) : SERVER_ERROR;
+  const error =
+    isDomainError
+      ? { code: err.code, message: err.message }
+      : { code: 'SERVER_ERROR', message: err.toString() };
+  if (!isDomainError) console.error(err);
+  return { status, error };
+}
+
 /** these are to map out errors thwn by web services G */
 function wsErrors(err) {
   const msg = (err.message) ? err.message : 'web service error';
   console.error(msg);
-  return { _: [ msg ] };
+  return { _: [msg] };
 }
 /** return new object just like paramsObj except that all values are
  *  trim()'d.

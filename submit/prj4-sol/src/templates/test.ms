@@ -1,4 +1,5 @@
 <html>
+{{name}}
 <link rel="stylesheet" href="/style.css" type="text/css"/>
 <table border='1' class="ss">
 {{#table}}

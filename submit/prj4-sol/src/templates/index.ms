@@ -12,7 +12,7 @@
     <form action="/" method="POST">
       <label for="ssName">Open Spreadsheet Name</label>
       <span>
-	<input name="ssName" value="" id="ssName"/>
+	<input name="ssName" value="{{Sname}}" id="ssName"/>
 	<br/>
 	
   {{#errorMessage}}
